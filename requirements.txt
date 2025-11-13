@@ -1,0 +1,18 @@
+# Core ML/Data Science
+numpy
+pandas
+scikit-learn
+tensorflow
+xgboost
+
+# Data Visualization
+matplotlib
+seaborn
+
+# Development
+jupyterlab
+
+# Audio/Image Processing
+librosa
+Pillow
+opencv-python
