@@ -37,11 +37,11 @@ def extract_audio_features(audio_path):
         return None
 
 USER_ID_MAP = {
-    'Christian': 150,
-    'Benitha': 162,
-    'Armand': 190,
-    'Jeremiah': 105,
-    'Clinton': 111,
+    'Patrick': 150,
+    'Samuel': 162,
+    'David': 190,
+    'Edine': 105,
+    'Anonymous': 111,
 }
 
 def get_user_profile_data(user_name, tabular_data_path):
