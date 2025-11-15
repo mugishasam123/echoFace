@@ -189,30 +189,71 @@ def main():
         )
 
         if recognized_name:
-            print("\n" + "="*60)
-            print(" " * 15 + "✅ AUTHENTICATION SUCCESSFUL")
-            print("="*60)
-            print(f"\n👤 User Identified: {recognized_name}")
+            print(f"\n✅ Face recognition successful! User identified as: {recognized_name}")
             print("\n" + "-"*60)
-
-            # --- Product Recommendation ---
-            print("\n" + "="*60)
-            print(" " * 15 + "🎯 PRODUCT RECOMMENDATION")
-            print("="*60)
             
-            tabular_data_path = 'data/customer-info/merged_dataset.csv'
-            user_profile = utils.get_user_profile_data(recognized_name, tabular_data_path)
-
-            if user_profile is not None:
-                recommended_product = recommendation.run_product_recommendation(user_profile, prod_artifacts)
-                print("\n" + "="*60)
-                print(" " * 12 + "✨ RECOMMENDATION RESULT")
-                print("="*60)
-                print(f"\n🎁 Recommended Product Category: {recommended_product}")
-                print("\n" + "="*60 + "\n")
+            # --- Voice Verification ---
+            print("\n" + "="*60)
+            print(" " * 18 + "🎤 VOICE VERIFICATION")
+            print("="*60)
+            print(f"\n👤 Welcome, {recognized_name}!")
+            print("💡 Please verify your identity with your voice sample.")
+            print("\n💬 Enter the full path to your voice/audio file.")
+            print("   Example: data/audio/patrick-approve.wav\n")
+            
+            audio_path = input("👉 Enter audio path: ").strip()
+            
+            # Remove quotes if user added them
+            audio_path = audio_path.strip('"').strip("'")
+            
+            if not audio_path:
+                print("\n❌ Error: No audio path provided.")
+                print("   Authentication failed at voice verification.\n")
+            elif not os.path.exists(audio_path):
+                print(f"\n❌ Error: Audio file not found at path: {audio_path}")
+                print("   Authentication failed at voice verification.\n")
             else:
-                print("\n❌ Could not generate a recommendation for this user.")
-                print("   User profile data not found.\n")
+                print(f"\n✅ Audio file found: {os.path.basename(audio_path)}")
+                
+                voice_auth_passed = auth.run_voice_auth(
+                    recognized_name,
+                    audio_path,
+                    auth_artifacts['voice_model'],
+                    auth_artifacts['voice_scaler'],
+                    auth_artifacts['voice_encoder']
+                )
+                
+                if voice_auth_passed:
+                    print("\n" + "="*60)
+                    print(" " * 15 + "✅ AUTHENTICATION SUCCESSFUL")
+                    print("="*60)
+                    print(f"\n🔐 User {recognized_name} has been authenticated!")
+                    print("\n" + "-"*60)
+
+                    # --- Product Recommendation ---
+                    print("\n" + "="*60)
+                    print(" " * 15 + "🎯 PRODUCT RECOMMENDATION")
+                    print("="*60)
+                    
+                    tabular_data_path = 'data/customer-info/merged_dataset.csv'
+                    user_profile = utils.get_user_profile_data(recognized_name, tabular_data_path)
+
+                    if user_profile is not None:
+                        recommended_product = recommendation.run_product_recommendation(user_profile, prod_artifacts)
+                        print("\n" + "="*60)
+                        print(" " * 12 + "✨ RECOMMENDATION RESULT")
+                        print("="*60)
+                        print(f"\n🎁 Recommended Product Category: {recommended_product}")
+                        print("\n" + "="*60 + "\n")
+                    else:
+                        print("\n❌ Could not generate a recommendation for this user.")
+                        print("   User profile data not found.\n")
+                else:
+                    print("\n" + "="*60)
+                    print(" " * 15 + "❌ AUTHENTICATION FAILED")
+                    print("="*60)
+                    print("\n⚠️  Voice verification failed.")
+                    print("   Voiceprint does not match the claimed identity.\n")
         else:
             print("\n" + "="*60)
             print(" " * 15 + "❌ AUTHENTICATION FAILED")
