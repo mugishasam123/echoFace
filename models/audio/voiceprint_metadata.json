@@ -1,0 +1,18 @@
+{
+  "training_timestamp": "2025-11-16T00:25:43.609538",
+  "model_name": "Random Forest",
+  "speakers": [
+    "david",
+    "patrick",
+    "samuel"
+  ],
+  "feature_count": 16,
+  "performance": {
+    "accuracy": 1.0,
+    "f1_score": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "train_loss": 0.22146143598309448,
+    "test_loss": 0.5689728152508844
+  }
+}
