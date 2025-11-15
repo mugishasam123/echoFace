@@ -5,8 +5,18 @@ import warnings
 import cv2
 import os
 import tempfile
+import time
+import numpy as np
 
 warnings.filterwarnings("ignore", category=UserWarning)
+
+# Try to import sounddevice for audio recording
+try:
+    import sounddevice as sd
+    import soundfile as sf
+    AUDIO_RECORDING_AVAILABLE = True
+except ImportError:
+    AUDIO_RECORDING_AVAILABLE = False
 
 def print_header():
     """Prints a nice header for the application."""
@@ -142,6 +152,146 @@ def get_user_choice():
             print(f"❌ Error: {e}")
             return '0'
 
+def get_audio_from_path():
+    """Gets the audio file path from the user."""
+    print("\n" + "="*60)
+    print(" " * 15 + "📁 AUDIO FILE PATH MODE")
+    print("="*60)
+    print("\n💡 Please enter the full path to your audio file.")
+    print("   Example: data/audio/patrick-approve.wav\n")
+    
+    audio_path = input("👉 Enter audio path: ").strip()
+    
+    # Remove quotes if user added them
+    audio_path = audio_path.strip('"').strip("'")
+    
+    if not audio_path:
+        print("\n❌ Error: No path provided.")
+        return None
+    
+    if not os.path.exists(audio_path):
+        print(f"\n❌ Error: File not found at path: {audio_path}")
+        return None
+    
+    if not os.path.isfile(audio_path):
+        print(f"\n❌ Error: Path is not a file: {audio_path}")
+        return None
+    
+    # Check if it's a valid audio file
+    valid_extensions = ['.wav', '.mp3', '.m4a', '.flac', '.ogg', '.aac', '.mp4']
+    if not any(audio_path.lower().endswith(ext) for ext in valid_extensions):
+        print(f"\n⚠️  Warning: File extension may not be a valid audio format.")
+        print("   Continuing anyway...")
+    
+    print(f"\n✅ Audio file found: {os.path.basename(audio_path)}")
+    return audio_path
+
+def record_audio_from_microphone(duration=3, sample_rate=22050):
+    """Records audio from the microphone and returns the file path."""
+    if not AUDIO_RECORDING_AVAILABLE:
+        print("\n❌ Error: Audio recording is not available.")
+        print("   Please install sounddevice and soundfile:")
+        print("   pip install sounddevice soundfile")
+        return None
+    
+    print("\n" + "="*60)
+    print(" " * 15 + "🎤 MICROPHONE RECORDING MODE")
+    print("="*60)
+    print(f"\n💡 Instructions:")
+    print(f"   • Recording will start in 3 seconds")
+    print(f"   • Speak clearly for {duration} seconds")
+    print(f"   • Press Ctrl+C to cancel\n")
+    
+    try:
+        # Countdown
+        for i in range(3, 0, -1):
+            print(f"   Recording starts in {i}...", end='\r')
+            time.sleep(1)
+        print("   🎤 Recording now! Speak clearly...        ")
+        
+        # Record audio
+        audio_data = sd.rec(
+            int(duration * sample_rate),
+            samplerate=sample_rate,
+            channels=1,
+            dtype='float32'
+        )
+        sd.wait()  # Wait until recording is finished
+        
+        print("   ✅ Recording complete!")
+        
+        # Save to temporary file
+        temp_dir = tempfile.gettempdir()
+        audio_path = os.path.join(temp_dir, 'echoface_voice_recording.wav')
+        
+        sf.write(audio_path, audio_data, sample_rate)
+        
+        if os.path.exists(audio_path):
+            print(f"   💾 Audio saved: {os.path.basename(audio_path)}")
+            return audio_path
+        else:
+            print("   ❌ Error: Could not save recorded audio.")
+            return None
+            
+    except KeyboardInterrupt:
+        print("\n   ❌ Recording cancelled by user.")
+        return None
+    except Exception as e:
+        print(f"\n   ❌ Error during recording: {e}")
+        return None
+
+def get_audio_input_menu():
+    """Shows menu for audio input options and returns the audio path."""
+    print("\n" + "="*60)
+    print(" " * 18 + "🎤 VOICE VERIFICATION")
+    print("="*60)
+    print("\n📋 How would you like to provide your voice sample?")
+    print("\n  [1] 📁 Use Audio File Path")
+    if AUDIO_RECORDING_AVAILABLE:
+        print("  [2] 🎤 Record from Microphone")
+    else:
+        print("  [2] 🎤 Record from Microphone (⚠️  Not available - install sounddevice)")
+    print("  [0] ❌ Cancel")
+    print("\n" + "-"*60)
+    
+    while True:
+        try:
+            choice = input("\n👉 Select an option: ").strip()
+            
+            if choice == '0':
+                print("\n❌ Voice verification cancelled.")
+                return None
+            elif choice == '1':
+                return get_audio_from_path()
+            elif choice == '2':
+                if AUDIO_RECORDING_AVAILABLE:
+                    duration_input = input("\n⏱️  Recording duration in seconds (default: 3): ").strip()
+                    try:
+                        duration = float(duration_input) if duration_input else 3.0
+                        if duration < 1:
+                            print("⚠️  Duration too short, using 1 second minimum.")
+                            duration = 1.0
+                        elif duration > 10:
+                            print("⚠️  Duration too long, using 10 seconds maximum.")
+                            duration = 10.0
+                    except ValueError:
+                        print("⚠️  Invalid input, using default 3 seconds.")
+                        duration = 3.0
+                    return record_audio_from_microphone(duration=duration)
+                else:
+                    print("\n❌ Audio recording not available.")
+                    print("   Please install: pip install sounddevice soundfile")
+                    print("   Or use option 1 to provide an audio file path.")
+                    continue
+            else:
+                print("❌ Invalid choice. Please enter 0, 1, or 2.")
+        except KeyboardInterrupt:
+            print("\n\n❌ Voice verification cancelled.")
+            return None
+        except Exception as e:
+            print(f"❌ Error: {e}")
+            return None
+
 def main():
     """Main function to orchestrate the full pipeline."""
     print_header()
@@ -188,32 +338,27 @@ def main():
             auth_artifacts['face_encoder']
         )
 
+        # Initialize variables for cleanup
+        audio_path = None
+        is_temp_audio = False
+        
         if recognized_name:
             print(f"\n✅ Face recognition successful! User identified as: {recognized_name}")
             print("\n" + "-"*60)
             
             # --- Voice Verification ---
-            print("\n" + "="*60)
-            print(" " * 18 + "🎤 VOICE VERIFICATION")
-            print("="*60)
             print(f"\n👤 Welcome, {recognized_name}!")
             print("💡 Please verify your identity with your voice sample.")
-            print("\n💬 Enter the full path to your voice/audio file.")
-            print("   Example: data/audio/patrick-approve.wav\n")
             
-            audio_path = input("👉 Enter audio path: ").strip()
+            audio_path = get_audio_input_menu()
             
-            # Remove quotes if user added them
-            audio_path = audio_path.strip('"').strip("'")
-            
-            if not audio_path:
-                print("\n❌ Error: No audio path provided.")
-                print("   Authentication failed at voice verification.\n")
-            elif not os.path.exists(audio_path):
-                print(f"\n❌ Error: Audio file not found at path: {audio_path}")
+            if audio_path is None:
+                print("\n❌ Voice verification cancelled or failed.")
                 print("   Authentication failed at voice verification.\n")
             else:
-                print(f"\n✅ Audio file found: {os.path.basename(audio_path)}")
+                # Check if this is a temporary recorded file
+                if 'echoface_voice_recording' in audio_path:
+                    is_temp_audio = True
                 
                 voice_auth_passed = auth.run_voice_auth(
                     recognized_name,
@@ -261,10 +406,18 @@ def main():
             print("\n⚠️  Facial recognition could not identify the user.")
             print("   Please try again with a clearer image.\n")
         
+        # Clean up temporary files
         # Clean up temporary captured image (only for webcam captures)
         if image_path and 'echoface_capture' in image_path and os.path.exists(image_path):
             try:
                 os.remove(image_path)
+            except Exception as e:
+                pass  # Silently ignore cleanup errors
+        
+        # Clean up temporary recorded audio (only for microphone recordings)
+        if is_temp_audio and audio_path and os.path.exists(audio_path):
+            try:
+                os.remove(audio_path)
             except Exception as e:
                 pass  # Silently ignore cleanup errors
         
