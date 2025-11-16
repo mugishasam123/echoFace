@@ -16,5 +16,3 @@ jupyterlab
 librosa
 Pillow
 opencv-python
-sounddevice
-soundfile
